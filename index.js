@@ -23,4 +23,16 @@ app.get("/", async (req, res) => {
   res.send("server's main route");
 });
 
+app.post("/pets", async (req, res) => {
+  const newPet = req.body;
+  const result = await petsCollection.insertOne(newPet);
+  res.json(result);
+});
+
+app.get("/pets", async (req, res) => {
+  const cursor = petsCollection.find();
+  const result = await cursor.toArray();
+  res.json(result);
+});
+
 app.listen(5000, () => console.log("server running on port: 5000"));
