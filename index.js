@@ -70,4 +70,17 @@ app.post("/adoption-requests", async (req, res) => {
   res.json(result);
 });
 
+app.get("/adoption-requests", async (req, res) => {
+  const email = req.query.email;
+  const query = { email: email };
+  const result = await adoptionRequestsCollection.find(query).toArray();
+  res.json(result);
+});
+
+
+
 app.listen(5000, () => console.log("server running on port: 5000"));
+
+
+
+
