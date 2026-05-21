@@ -42,4 +42,12 @@ app.get("/pets/:id", async (req, res) => {
   res.json(result);
 });
 
+app.put("/pets/:id", async (req, res) => {
+  const updatedPet = req.body;
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
+  const result = await petsCollection.updateOne(query, { $set: updatedPet });
+  res.json(result);
+});
+
 app.listen(5000, () => console.log("server running on port: 5000"));
