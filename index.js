@@ -9,6 +9,10 @@ app.use(express.json());
 const client = new MongoClient(process.env.URI);
 let petsCollection = client.db("petAdoption").collection("pets");
 
+let adoptionRequestsCollection = client
+  .db("petAdoption")
+  .collection("adoptionRequests");
+
 async function run() {
   try {
     await client.connect();
@@ -47,6 +51,22 @@ app.put("/pets/:id", async (req, res) => {
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
   const result = await petsCollection.updateOne(query, { $set: updatedPet });
+  res.json(result);
+});
+
+app.delete("/pets/:id", async (req, res) => {
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
+  const result = await petsCollection.deleteOne(query);
+  res.json(result);
+});
+
+// adoption requiest
+
+app.post("/adoption-requests", async (req, res) => {
+  const newAdoptionReq = req.body;
+  newAdoptionReq.status = "pending";
+  const result = await adoptionRequestsCollection.insertOne(newAdoptionReq);
   res.json(result);
 });
 
