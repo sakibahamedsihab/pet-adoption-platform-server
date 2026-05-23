@@ -109,4 +109,11 @@ app.patch("/adoption-requests/:id", async (req, res) => {
   res.json(result);
 });
 
+app.delete("/adoption-requests/:id", async (req, res) => {
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
+  const result = await adoptionRequestsCollection.deleteOne(query);
+  res.json(result);
+});
+
 app.listen(5000, () => console.log("server running on port: 5000"));
