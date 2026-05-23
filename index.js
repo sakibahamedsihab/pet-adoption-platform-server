@@ -34,7 +34,7 @@ app.post("/pets", async (req, res) => {
 });
 
 app.get("/pets", async (req, res) => {
-  const { search, species } = req.query;
+  const { search, species, email } = req.query;
   let query = {};
 
   if (search) {
@@ -43,6 +43,10 @@ app.get("/pets", async (req, res) => {
 
   if (species && species !== "All Species") {
     query.species = { $in: [species] };
+  }
+
+  if (email) {
+    query.ownerEmail = email;
   }
 
   const cursor = petsCollection.find(query);
