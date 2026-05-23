@@ -34,7 +34,18 @@ app.post("/pets", async (req, res) => {
 });
 
 app.get("/pets", async (req, res) => {
-  const cursor = petsCollection.find();
+  const { search, species } = req.query;
+  let query = {};
+
+  if (search) {
+    query.petName = { $regex: search, $options: "i" };
+  }
+
+  if (species && species !== "All Species") {
+    query.species = { $in: [species] };
+  }
+
+  const cursor = petsCollection.find(query);
   const result = await cursor.toArray();
   res.json(result);
 });
@@ -77,10 +88,21 @@ app.get("/adoption-requests", async (req, res) => {
   res.json(result);
 });
 
+app.patch("/adoption-requests/:id", async (req, res) => {
+  const { status, petId } = req.body;
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
+  const result = await adoptionRequestsCollection.updateOne(query, {
+    $set: { status: status },
+  });
 
+  if (status === "approved") {
+    const petQuery = { _id: new ObjectId(petId) };
+    const petResult = await petsCollection.updateOne(petQuery, {
+      $set: { status: "adopted" },
+    });
+  }
+  res.json(result);
+});
 
 app.listen(5000, () => console.log("server running on port: 5000"));
-
-
-
-
