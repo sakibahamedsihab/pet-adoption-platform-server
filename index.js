@@ -86,8 +86,12 @@ app.post("/adoption-requests", async (req, res) => {
 });
 
 app.get("/adoption-requests", async (req, res) => {
-  const email = req.query.email;
-  const query = { email: email };
+  const { email, petId } = req.query;
+  let query = {};
+
+  if (email) query.email = email;
+  if (petId) query.petId = petId;
+
   const result = await adoptionRequestsCollection.find(query).toArray();
   res.json(result);
 });
@@ -96,14 +100,15 @@ app.patch("/adoption-requests/:id", async (req, res) => {
   const { status, petId } = req.body;
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
+
   const result = await adoptionRequestsCollection.updateOne(query, {
     $set: { status: status },
   });
 
   if (status === "approved") {
     const petQuery = { _id: new ObjectId(petId) };
-    const petResult = await petsCollection.updateOne(petQuery, {
-      $set: { status: "adopted" },
+    await petsCollection.updateOne(petQuery, {
+      $set: { adopted: true },
     });
   }
   res.json(result);
