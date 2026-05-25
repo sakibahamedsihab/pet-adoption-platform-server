@@ -1,14 +1,26 @@
 require("dotenv").config();
+
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ObjectId } = require("mongodb");
 const app = express();
-app.use(cors());
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://pet-adoption-client-rho.vercel.app",
+    ],
+    credentials: true,
+  }),
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const client = new MongoClient(process.env.URI);
 let petsCollection = client.db("petAdoption").collection("pets");
-
 let adoptionRequestsCollection = client
   .db("petAdoption")
   .collection("adoptionRequests");
@@ -23,16 +35,58 @@ async function run() {
 }
 run();
 
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
+app.post("/jwt", async (req, res) => {
+  const user = req.body;
+  const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: "10h" });
+
+  res
+    .cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    })
+    .send({ success: true });
+});
+
+app.post("/logout", async (req, res) => {
+  res
+    .clearCookie("token", {
+      maxAge: 0,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    })
+    .send({ success: true });
+});
+
 app.get("/", async (req, res) => {
   res.send("server's main route");
 });
 
-app.post("/pets", async (req, res) => {
+// --- Pets Routes ---
+
+app.post("/pets", verifyToken, async (req, res) => {
   const newPet = req.body;
   const result = await petsCollection.insertOne(newPet);
   res.json(result);
 });
 
+// Public: Get all pets (Search & Filter)
 app.get("/pets", async (req, res) => {
   const { search, species, email } = req.query;
   let query = {};
@@ -54,6 +108,7 @@ app.get("/pets", async (req, res) => {
   res.json(result);
 });
 
+// Public: Get single pet details
 app.get("/pets/:id", async (req, res) => {
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
@@ -61,7 +116,8 @@ app.get("/pets/:id", async (req, res) => {
   res.json(result);
 });
 
-app.put("/pets/:id", async (req, res) => {
+// Protected: Update a pet
+app.put("/pets/:id", verifyToken, async (req, res) => {
   const updatedPet = req.body;
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
@@ -69,23 +125,26 @@ app.put("/pets/:id", async (req, res) => {
   res.json(result);
 });
 
-app.delete("/pets/:id", async (req, res) => {
+// Protected: Delete a pet
+app.delete("/pets/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
   const result = await petsCollection.deleteOne(query);
   res.json(result);
 });
 
-// adoption requiest
+// --- Adoption Request Routes ---
 
-app.post("/adoption-requests", async (req, res) => {
+// Protected: Submit adoption request
+app.post("/adoption-requests", verifyToken, async (req, res) => {
   const newAdoptionReq = req.body;
   newAdoptionReq.status = "pending";
   const result = await adoptionRequestsCollection.insertOne(newAdoptionReq);
   res.json(result);
 });
 
-app.get("/adoption-requests", async (req, res) => {
+//  Protected: Get requests (My requests)
+app.get("/adoption-requests", verifyToken, async (req, res) => {
   const { email, petId } = req.query;
   let query = {};
 
@@ -96,7 +155,8 @@ app.get("/adoption-requests", async (req, res) => {
   res.json(result);
 });
 
-app.patch("/adoption-requests/:id", async (req, res) => {
+//  Protected: Update request status (Approve/Reject)
+app.patch("/adoption-requests/:id", verifyToken, async (req, res) => {
   const { status, petId } = req.body;
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
@@ -114,7 +174,8 @@ app.patch("/adoption-requests/:id", async (req, res) => {
   res.json(result);
 });
 
-app.delete("/adoption-requests/:id", async (req, res) => {
+//  Protected: Cancel a request
+app.delete("/adoption-requests/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
   const result = await adoptionRequestsCollection.deleteOne(query);
