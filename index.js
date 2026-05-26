@@ -119,18 +119,28 @@ app.get("/adoption-requests", async (req, res) => {
 app.patch("/adoption-requests/:id", async (req, res) => {
   const { status, petId } = req.body;
   const { id } = req.params;
-  const query = { _id: new ObjectId(id) };
-
-  const result = await adoptionRequestsCollection.updateOne(query, {
-    $set: { status: status },
-  });
 
   if (status === "approved") {
     const petQuery = { _id: new ObjectId(petId) };
+    const pet = await petsCollection.findOne(petQuery);
+
+    if (pet && pet.adopted === true) {
+      return res
+        .status(400)
+        .json({ message: "This pet is already adopted by someone else! 🚫" });
+    }
+
+
     await petsCollection.updateOne(petQuery, {
       $set: { adopted: true },
     });
   }
+
+  const query = { _id: new ObjectId(id) };
+  const result = await adoptionRequestsCollection.updateOne(query, {
+    $set: { status: status },
+  });
+
   res.json(result);
 });
 
