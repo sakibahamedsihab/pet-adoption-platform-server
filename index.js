@@ -36,11 +36,13 @@ async function run() {
 run();
 
 const verifyToken = (req, res, next) => {
-  const token = req.cookies?.token;
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
+  if (!authHeader) {
     return res.status(401).send({ message: "Unauthorized access" });
   }
+
+  const token = authHeader.split(" ")[1];
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
@@ -55,23 +57,11 @@ app.post("/jwt", async (req, res) => {
   const user = req.body;
   const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: "10h" });
 
-  res
-    .cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    })
-    .send({ success: true });
+  res.send({ token });
 });
 
 app.post("/logout", async (req, res) => {
-  res
-    .clearCookie("token", {
-      maxAge: 0,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    })
-    .send({ success: true });
+  res.send({ success: true });
 });
 
 app.get("/", async (req, res) => {
@@ -143,7 +133,7 @@ app.post("/adoption-requests", verifyToken, async (req, res) => {
   res.json(result);
 });
 
-//  Protected: Get requests (My requests)
+// Protected: Get requests (My requests)
 app.get("/adoption-requests", verifyToken, async (req, res) => {
   const { email, petId } = req.query;
   let query = {};
@@ -155,7 +145,7 @@ app.get("/adoption-requests", verifyToken, async (req, res) => {
   res.json(result);
 });
 
-//  Protected: Update request status (Approve/Reject)
+// Protected: Update request status (Approve/Reject)
 app.patch("/adoption-requests/:id", verifyToken, async (req, res) => {
   const { status, petId } = req.body;
   const { id } = req.params;
@@ -174,7 +164,7 @@ app.patch("/adoption-requests/:id", verifyToken, async (req, res) => {
   res.json(result);
 });
 
-//  Protected: Cancel a request
+// Protected: Cancel a request
 app.delete("/adoption-requests/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
